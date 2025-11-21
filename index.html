@@ -6,9 +6,9 @@
 <title>JSON Viewer Pro - Formatter, Validator & Tree View</title>
 <meta name="description" content="Free online JSON Viewer and Formatter. Convert JSON strings to a readable tree view, debug errors, and validate syntax.">
 <style>
-    /* --- 1. 主题变量定义 --- */
+    /* --- 1. Theme Variables --- */
     :root {
-        /* 默认：浅色主题 (Light Theme) */
+        /* Default: Light Theme */
         --bg-color: #ffffff;
         --header-bg: #f3f3f3;
         --panel-bg: #ffffff;
@@ -21,7 +21,7 @@
         --ad-bg: #f9fafb;
         --ad-border: #d1d5db;
 
-        /* 语法高亮 */
+        /* Syntax Highlighting */
         --key-color: #0451a5;
         --string-color: #a31515;
         --number-color: #098658;
@@ -31,7 +31,7 @@
         --guide-line-color: #e0e0e0;
     }
 
-    /* 深色主题覆盖 */
+    /* Dark Theme Overrides */
     [data-theme="dark"] {
         --bg-color: #1e1e1e;
         --header-bg: #333333;
@@ -45,7 +45,7 @@
         --ad-bg: #2d2d2d;
         --ad-border: #444444;
 
-        /* 语法高亮 */
+        /* Syntax Highlighting */
         --key-color: #9cdcfe;
         --string-color: #ce9178;
         --number-color: #b5cea8;
@@ -104,10 +104,10 @@
     }
     .theme-btn:hover { transform: rotate(15deg); opacity: 0.8; }
 
-    /* --- 广告容器样式 --- */
+    /* --- Ad Container --- */
     .ad-container {
         width: 100%;
-        max-width: 94%; /* 【修改】跟随下方工作区宽度，改为 94% */
+        max-width: 94%;
         margin: 15px auto;
         padding: 10px;
         background-color: var(--ad-bg);
@@ -122,10 +122,10 @@
     }
     .ad-label { font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px; opacity: 0.7; }
 
-    /* --- Workspace (工具区) - 修改点 --- */
+    /* --- Workspace --- */
     .workspace {
         width: 100%;
-        max-width: 94%; /* 【修改】设置为 94%，比之前的 98% 窄一点，更平衡 */
+        max-width: 94%;
         margin: 0 auto;
         display: flex;
         padding: 0 10px;
@@ -329,7 +329,6 @@
 </div>
 
 <section class="json-seo-content">
-    
     <h2>Mastering Data with a JSON Formatter and Tree Viewer</h2>
     <p>
         In the modern web development landscape, <strong>JavaScript Object Notation (JSON)</strong> has established itself as the universal standard for data interchange. From RESTful APIs to configuration files, JSON is ubiquitous. However, raw JSON data returned from a server is often minified—stripped of whitespace to minimize file size—making it nearly impossible for humans to read. This is where a robust <strong>JSON Formatter and Tree Viewer</strong> becomes an essential utility for developers, data analysts, and software engineers.
@@ -397,11 +396,10 @@
     <p>
         Always ensure you are using a tool that respects data privacy, especially when looking to <strong>debug JSON</strong> that contains sensitive production data. Client-side processing ensures that your data remains secure while you benefit from powerful formatting features.
     </p>
-
 </section>
 
 <script>
-    // i18n Definitions
+    // --- 1. Internationalization (i18n) ---
     const i18n = {
         en: {
             title: "JSON Viewer Pro",
@@ -462,6 +460,8 @@
 
     let currentLang = 'en';
 
+    // --- 2. UI Control Functions ---
+
     function changeLanguage() {
         const select = document.getElementById('language-select');
         currentLang = select.value;
@@ -470,18 +470,203 @@
         document.getElementById('app-title').innerText = t.title;
         document.getElementById('lbl-input').innerText = t.input;
         document.getElementById('lbl-output').innerText = t.output;
-        document.getElementById('lbl-placeholder').innerText = t.placeholder;
         
+        // Only update placeholder if result is empty
+        const treeView = document.getElementById('tree-view');
+        if (!treeView.querySelector('ul') && !treeView.querySelector('.error')) {
+             document.getElementById('lbl-placeholder').innerText = t.placeholder;
+        }
+
         document.querySelector('.action-btn').title = t.btnGenerate;
         document.getElementById('btn-clear').title = t.clearHint;
         document.getElementById('btn-expand').title = t.expandHint;
         document.getElementById('btn-theme').title = t.themeHint;
         
-        const treeView = document.getElementById('tree-view');
+        // Update error message if present
         if (treeView.querySelector('.error')) {
             treeView.innerHTML = `<div class="error">❌ ${t.error}</div>`;
         }
     }
 
     function toggleTheme() {
-        const body = document
+        const body = document.body;
+        const currentTheme = body.getAttribute('data-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        
+        body.setAttribute('data-theme', newTheme);
+        
+        // Update button icon
+        const btn = document.getElementById('btn-theme');
+        btn.innerText = newTheme === 'light' ? '🌑' : '☀️';
+    }
+
+    function clearInput() {
+        document.getElementById('json-input').value = '';
+        document.getElementById('tree-view').innerHTML = `<div style="opacity: 0.5; margin-top: 20px; text-align: center;" id="lbl-placeholder">${i18n[currentLang].placeholder}</div>`;
+    }
+
+    // State to track if we should expand or collapse
+    let isExpanded = false; 
+    function expandAll() {
+        const details = document.querySelectorAll('#tree-view details');
+        if (details.length === 0) return;
+
+        isExpanded = !isExpanded; // Toggle state
+        details.forEach(detail => {
+            if (isExpanded) {
+                detail.setAttribute('open', 'open');
+            } else {
+                detail.removeAttribute('open');
+            }
+        });
+    }
+
+    // --- 3. Core Logic: Render Tree ---
+
+    function renderTree() {
+        const inputStr = document.getElementById('json-input').value.trim();
+        const treeView = document.getElementById('tree-view');
+        
+        if (!inputStr) {
+            treeView.innerHTML = `<div style="opacity: 0.5; margin-top: 20px; text-align: center;">${i18n[currentLang].placeholder}</div>`;
+            return;
+        }
+
+        try {
+            // 1. Parse JSON
+            const jsonObj = JSON.parse(inputStr);
+            
+            // 2. Clear previous result
+            treeView.innerHTML = '';
+
+            // 3. Build Tree
+            const rootList = document.createElement('ul');
+            const rootItem = createNode(null, jsonObj);
+            rootList.appendChild(rootItem);
+            treeView.appendChild(rootList);
+
+            // Auto-expand the root level
+            const rootDetails = rootItem.querySelector('details');
+            if(rootDetails) rootDetails.setAttribute('open', 'open');
+
+        } catch (e) {
+            treeView.innerHTML = `<div class="error">❌ ${i18n[currentLang].error}<br><br><small>${e.message}</small></div>`;
+        }
+    }
+
+    /**
+     * Recursive function to create tree nodes
+     * @param {string|null} key - The key name (null for root)
+     * @param {any} value - The value (object, array, string, number, etc.)
+     */
+    function createNode(key, value) {
+        const li = document.createElement('li');
+        
+        // Determine type
+        const isArray = Array.isArray(value);
+        const isObject = value !== null && typeof value === 'object';
+        const isComposite = isArray || (isObject && !isArray);
+
+        if (isComposite) {
+            const details = document.createElement('details');
+            const summary = document.createElement('summary');
+            const ul = document.createElement('ul');
+
+            // Create summary content (Icon + Key + Count)
+            const nodeWrapper = document.createElement('div');
+            nodeWrapper.className = 'tree-node-wrapper';
+
+            // Icon
+            const icon = document.createElement('span');
+            icon.className = `tree-icon ${isArray ? 'array' : 'folder'}`;
+            nodeWrapper.appendChild(icon);
+
+            // Key (if exists)
+            if (key !== null) {
+                const keySpan = document.createElement('span');
+                keySpan.className = 'key';
+                keySpan.innerText = `"${key}"`;
+                nodeWrapper.appendChild(keySpan);
+
+                const separator = document.createElement('span');
+                separator.className = 'separator';
+                separator.innerText = ': ';
+                nodeWrapper.appendChild(separator);
+            }
+
+            // Item count / preview
+            const countSpan = document.createElement('span');
+            countSpan.className = 'count';
+            const size = isArray ? value.length : Object.keys(value).length;
+            countSpan.innerText = isArray ? `[${size}]` : `{${size}}`;
+            nodeWrapper.appendChild(countSpan);
+
+            summary.appendChild(nodeWrapper);
+            details.appendChild(summary);
+
+            // Recursively build children
+            if (isArray) {
+                value.forEach((item, index) => {
+                    ul.appendChild(createNode(index, item));
+                });
+            } else {
+                Object.keys(value).forEach(k => {
+                    ul.appendChild(createNode(k, value[k]));
+                });
+            }
+
+            details.appendChild(ul);
+            li.appendChild(details);
+        } else {
+            // Primitive values (String, Number, Boolean, Null)
+            const nodeWrapper = document.createElement('div');
+            nodeWrapper.className = 'tree-node-wrapper';
+
+            // Icon for file/prop
+            const icon = document.createElement('span');
+            icon.className = 'tree-icon file';
+            nodeWrapper.appendChild(icon);
+
+            // Key
+            if (key !== null) {
+                const keySpan = document.createElement('span');
+                keySpan.className = 'key';
+                keySpan.innerText = `"${key}"`;
+                nodeWrapper.appendChild(keySpan);
+
+                const separator = document.createElement('span');
+                separator.className = 'separator';
+                separator.innerText = ': ';
+                nodeWrapper.appendChild(separator);
+            }
+
+            // Value styling
+            const valueSpan = document.createElement('span');
+            if (typeof value === 'string') {
+                valueSpan.className = 'string';
+                valueSpan.innerText = `"${value}"`;
+            } else if (typeof value === 'number') {
+                valueSpan.className = 'number';
+                valueSpan.innerText = value;
+            } else if (typeof value === 'boolean') {
+                valueSpan.className = value ? 'boolean-true' : 'boolean-false';
+                valueSpan.innerText = value;
+            } else if (value === null) {
+                valueSpan.className = 'null';
+                valueSpan.innerText = 'null';
+            }
+
+            nodeWrapper.appendChild(valueSpan);
+            li.appendChild(nodeWrapper);
+        }
+
+        return li;
+    }
+
+    // Initialize specific UI states on load if needed
+    window.onload = function() {
+        // You could verify theme preference from localStorage here
+    };
+</script>
+</body>
+</html>
